@@ -8,6 +8,10 @@
 #include <QPointer>
 #include <QLinkedList>
 #include <QElapsedTimer>
+#include <QDebug>
+#include <QFileInfo>
+#include <QTimer>
+
 
 namespace QDownloader {
 
@@ -19,8 +23,11 @@ public:
     explicit Item(QUrl url);
     QUrl url() const { return _url; }
     QString filename();
+    qint64 elapsed();
     qreal progress();
     qreal downloadSpeed();
+    void setSpeedLimit(qint64 bytesBySecond);
+    bool isPaused() { return !_reply; }
 
 signals:
     void dataChanged();
@@ -34,6 +41,7 @@ private slots:
 
     void finished();
     void downloadProgress ( qint64 bytesReceived, qint64 bytesTotal );
+    void onReadyRead();
     void error ( QNetworkReply::NetworkError code );
 
 private:
@@ -45,6 +53,7 @@ private:
     qreal _progress;
     qint64 _bytesReceivedAtBegin;
     qint64 _bytesReceived;
+    qint64 _speedLimit;
 
     struct InstantSpeed
     {
@@ -55,6 +64,8 @@ private:
     QLinkedList<InstantSpeed> _speedList;
     QElapsedTimer _elapsedTimer;
     InstantSpeed _currentInstantSpeed;
+    qint64 _duration;
+    QElapsedTimer _durationTimer;
 };
 
 class ItemPtr : public QObject

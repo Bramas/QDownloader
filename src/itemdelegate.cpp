@@ -61,6 +61,8 @@ void ItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
 
     painter->drawText(QRect(option.rect.right()-200,option.rect.top(),100,20), QString("%1 Ko/s").arg(QString::number(item->downloadSpeed() / 1024.0, 'f', 2)));
 
+    painter->drawText(QRect(option.rect.right()-250,option.rect.top(),50,20), QString("%1s").arg(QString::number(item->elapsed() / 1000)));
+
     QStyleOptionProgressBar progressOptions;
 
     progressOptions.rect = QRect(option.rect.right()-100,option.rect.top(),100,20);
