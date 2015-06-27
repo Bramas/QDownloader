@@ -26,3 +26,5 @@
 *.exe
 *.out
 *.app
+src/qdownloader.pro
+src/qdownloader.pro.user.2.3pre1
