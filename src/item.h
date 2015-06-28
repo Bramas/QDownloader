@@ -11,23 +11,52 @@
 #include <QDebug>
 #include <QFileInfo>
 #include <QTimer>
+#include <QSettings>
 
 
 namespace QDownloader {
+
 
 
 class Item : public QObject
 {
     Q_OBJECT
 public:
+    enum State { NotStarted, Paused, Running, Finished, Error };
+    struct InstantSpeed
+    {
+        qint64 duration;
+        qint64 bytes;
+    };
+    class ItemInfo
+    {
+    public:
+        ItemInfo();
+        ItemInfo(const ItemInfo & itemInfo);
+
+        QUrl url;
+        QUrl redirectUrl;
+        QString filename;
+        qint64 bytesReceivedAtBegin;
+        qint64 speedLimit;
+        qint64 duration;
+        qreal  progress;
+        Item::State state;
+    };
+
     explicit Item(QUrl url);
-    QUrl url() const { return _url; }
+    explicit Item(const ItemInfo &info);
+    void saveInfo();
+    QUrl url() const { return _info.url; }
     QString filename();
     qint64 elapsed();
     qreal progress();
     qreal downloadSpeed();
     void setSpeedLimit(qint64 bytesBySecond);
     bool isPaused() { return !_reply; }
+
+
+    const ItemInfo & info() { return _info; }
 
 signals:
     void dataChanged();
@@ -45,26 +74,16 @@ private slots:
     void error ( QNetworkReply::NetworkError code );
 
 private:
-    QUrl _url;
-    QUrl _redirectUrl;
+
+    ItemInfo _info;
+
     QNetworkReply * _reply;
     QFile _file;
-    QString _filename;
-    qreal _progress;
-    qint64 _bytesReceivedAtBegin;
     qint64 _bytesReceived;
-    qint64 _speedLimit;
-
-    struct InstantSpeed
-    {
-        qint64 duration;
-        qint64 bytes;
-    };
 
     QLinkedList<InstantSpeed> _speedList;
     QElapsedTimer _elapsedTimer;
     InstantSpeed _currentInstantSpeed;
-    qint64 _duration;
     QElapsedTimer _durationTimer;
 };
 
@@ -84,5 +103,9 @@ private:
 } // namespace QDownloader
 
 Q_DECLARE_METATYPE(QDownloader::ItemPtr)
+Q_DECLARE_METATYPE(QDownloader::Item::ItemInfo)
+
+QDataStream& operator<<(QDataStream& out, const QDownloader::Item::ItemInfo& v);
+QDataStream& operator>>(QDataStream& in, QDownloader::Item::ItemInfo& v);
 
 #endif // DOWNLOADITEM_H

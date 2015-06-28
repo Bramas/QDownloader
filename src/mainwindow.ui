@@ -80,6 +80,14 @@
     <addaction name="actionResume"/>
     <addaction name="actionRemove_from_list"/>
    </widget>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>QDownloader</string>
+    </property>
+    <addaction name="actionPreferences"/>
+    <addaction name="actionQuit"/>
+   </widget>
+   <addaction name="menuFile"/>
    <addaction name="menuDownload"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -112,7 +120,40 @@
     <string>Remove from list</string>
    </property>
   </action>
+  <action name="actionQuit">
+   <property name="text">
+    <string>Quit</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::QuitRole</enum>
+   </property>
+  </action>
+  <action name="actionPreferences">
+   <property name="text">
+    <string>Preferences</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::PreferencesRole</enum>
+   </property>
+  </action>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>actionQuit</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

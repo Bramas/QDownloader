@@ -1,11 +1,18 @@
 #include "listmodel.h"
 
 #include <QDebug>
+#include <QSettings>
 
 using namespace QDownloader;
 
 ItemsModel::ItemsModel()
 {
+    QSettings settings;
+    settings.beginGroup("Downloads");
+    foreach (const QString &key, settings.allKeys()) {
+        Item * item = new Item(settings.value(key).value<Item::ItemInfo>());
+        addItem(item);
+    }
 }
 
 
@@ -55,6 +62,9 @@ void ItemsModel::addItem(Item *item)
     _items << item;
     qDebug()<<"item inserted";
     endInsertRows();
+    QSettings settings;
+    settings.beginGroup("Downloads");
+    settings.setValue(QFileInfo(item->filename()).absoluteFilePath(), QVariant::fromValue<Item::ItemInfo>(item->info()));
 }
 
 void ItemsModel::remove(QModelIndex index)
@@ -64,6 +74,13 @@ void ItemsModel::remove(QModelIndex index)
     endRemoveRows();
 }
 
+void ItemsModel::saveItemsInfo()
+{
+    foreach(Item * item, _items)
+    {
+        item->saveInfo();
+    }
+}
 
 void ItemsModel::onItemChanged()
 {

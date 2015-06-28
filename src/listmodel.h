@@ -24,6 +24,8 @@ public:
     void addItem(Item * item);
     void remove(QModelIndex index);
 
+    void saveItemsInfo();
+
 private slots:
     void onItemChanged();
 

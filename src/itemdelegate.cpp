@@ -56,7 +56,7 @@ void ItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
         textColor = option.palette.text().color();
 
     painter->setPen(textColor);
-    painter->drawText(option.rect, item->url().toString());
+    painter->drawText(QRect(QPoint(0,0),QPoint(option.rect.right()-250,option.rect.bottom())), item->url().toString());
 
 
     painter->drawText(QRect(option.rect.right()-200,option.rect.top(),100,20), QString("%1 Ko/s").arg(QString::number(item->downloadSpeed() / 1024.0, 'f', 2)));

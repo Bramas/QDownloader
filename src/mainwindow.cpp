@@ -54,5 +54,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    _model->saveItemsInfo();
     delete ui;
 }

@@ -4,68 +4,125 @@
 
 using namespace QDownloader;
 
+
+Item::ItemInfo::ItemInfo()
+{
+    bytesReceivedAtBegin = 0;
+    speedLimit = 1024*200;
+    duration = 0;
+    progress = 0;
+    state = NotStarted;
+}
+
+
+Item::ItemInfo::ItemInfo(const ItemInfo & itemInfo)
+{
+    url                  = itemInfo.url;
+    redirectUrl          = itemInfo.redirectUrl;
+    filename             = itemInfo.filename;
+    bytesReceivedAtBegin = itemInfo.bytesReceivedAtBegin;
+    speedLimit           = itemInfo.speedLimit;
+    duration             = itemInfo.duration;
+    progress             = itemInfo.progress;
+    state             = itemInfo.state;
+}
+
+QDataStream& operator<<(QDataStream& out, const QDownloader::Item::ItemInfo& v) {
+
+
+    out << v.url << v.redirectUrl
+        << v.filename << v.bytesReceivedAtBegin
+        << v.speedLimit << v.duration
+        << v.progress << v.state;
+
+    return out;
+}
+
+QDataStream& operator>>(QDataStream& in, QDownloader::Item::ItemInfo& v) {
+
+    int stateInt;
+    in >> v.url >> v.redirectUrl
+        >> v.filename >> v.bytesReceivedAtBegin
+        >> v.speedLimit >> v.duration
+        >> v.progress >> stateInt;
+    v.state = (Item::State)stateInt;
+    return in;
+}
+
+
 Item::Item(QUrl url)
 {
-    _redirectUrl = _url = url;
+    _info.redirectUrl = _info.url = url;
     _reply = 0;
-    _progress = 0;
     _bytesReceived = 0;
-    _bytesReceivedAtBegin = 0;
     _currentInstantSpeed.duration = 0;
     _currentInstantSpeed.bytes = 0;
-    _duration = 0;
-    _speedLimit = 1024*200;
+    _file.setFileName(filename());
+}
+
+Item::Item(const ItemInfo &info) : Item(QUrl())
+{
+    _info = info;
+    _file.setFileName(filename());
+}
+
+void Item::saveInfo()
+{
+    QSettings settings;
+    settings.beginGroup("Downloads");
+    settings.setValue(QFileInfo(filename()).absoluteFilePath(), QVariant::fromValue<ItemInfo>(info()));
+    qDebug()<<"save state";
 }
 
 QString Item::filename()
 {
-    if(_filename.isEmpty())
+    if(_info.filename.isEmpty())
     {
+        _info.filename = _info.url.fileName();
         if(_reply)
         {
-            _filename = _reply->url().fileName();
-            if(_filename.isEmpty())
+            if(_info.filename.isEmpty())
             {
                 QString nameHeader = _reply->header(QNetworkRequest::ContentDispositionHeader).toString();
                 QRegExp extractNameHeader("filename=[\"]{0,1}(.*)[\"]{0,1}");
                 qDebug()<<nameHeader;
                 if(extractNameHeader.indexIn(nameHeader) != -1)
                 {
-                    _filename = extractNameHeader.capturedTexts().at(1);
+                    _info.filename = extractNameHeader.capturedTexts().at(1);
                 }
-                QRegExp extractNameUrl("([a-z\\.\\-_0-9]+)[^a-z\\.\\-_0-9]*$", Qt::CaseInsensitive);
-                if(extractNameUrl.indexIn(QUrl::fromPercentEncoding(_url.toEncoded())) != -1)
-                {
-                    _filename = extractNameUrl.capturedTexts().at(1);
-                }
+            }
+        }
+        QRegExp extractNameUrl("([a-z\\.\\-_0-9]+)[^a-z\\.\\-_0-9]*$", Qt::CaseInsensitive);
+        if(extractNameUrl.indexIn(QUrl::fromPercentEncoding(_info.url.toEncoded())) != -1)
+        {
+            _info.filename = extractNameUrl.capturedTexts().at(1);
+        }
 
-                if(_filename.isEmpty())
-                {
-                    _filename = "untitled_download";
-                }
-            }
-            if(QFileInfo(_filename).exists())
-            {
-                qDebug()<<"file exists => overwriting";
-            }
+        if(_info.filename.isEmpty())
+        {
+            _info.filename = "untitled_download";
+        }
+        if(QFileInfo(_info.filename).exists())
+        {
+            qDebug()<<"file exists => overwriting";
         }
     }
 
-    return _filename;
+    return _info.filename;
 }
 
 qreal Item::progress()
 {
-    return _progress;
+    return _info.progress;
 }
 
 qint64 Item::elapsed()
 {
     if(isPaused())
     {
-        return _duration;
+        return _info.duration;
     }
-    return _duration + _durationTimer.elapsed();
+    return _info.duration + _durationTimer.elapsed();
 }
 
 /*!
@@ -82,18 +139,17 @@ qreal Item::downloadSpeed()
 
 void Item::setSpeedLimit(qint64 bytesBySecond)
 {
-    _speedLimit = bytesBySecond;
+    _info.speedLimit = bytesBySecond;
     if(_reply)
     {
-        _reply->setReadBufferSize(2 * _speedLimit);
+        _reply->setReadBufferSize(2 * _info.speedLimit);
     }
 }
 
 void Item::start()
 {
-    _reply = DownloadManager::instance()->download(_redirectUrl);
-    _reply->setReadBufferSize(2 * _speedLimit);
-    _file.setFileName(filename());
+    _reply = DownloadManager::instance()->download(_info.redirectUrl);
+    _reply->setReadBufferSize(2 * _info.speedLimit);
     if(!_file.open(QFile::WriteOnly))
     {
         qDebug()<<"unable to open file "<<filename();
@@ -122,9 +178,9 @@ void Item::pause()
     _reply->abort();
     _file.close();
     _reply = 0;
-    _bytesReceivedAtBegin += _bytesReceived;
+    _info.bytesReceivedAtBegin += _bytesReceived;
     _bytesReceived = 0;
-    _duration += _durationTimer.elapsed();
+    _info.duration += _durationTimer.elapsed();
 }
 
 void Item::resume()
@@ -137,8 +193,8 @@ void Item::resume()
 
     quint64 size = _file.size();
 
-    _reply = DownloadManager::instance()->resume(_redirectUrl, size);
-    _reply->setReadBufferSize(2 * _speedLimit);
+    _reply = DownloadManager::instance()->resume(_info.redirectUrl, size);
+    _reply->setReadBufferSize(2 * _info.speedLimit);
     connect(_reply,SIGNAL(finished()),this,SLOT(finished()));
     connect(_reply,SIGNAL(downloadProgress(qint64,qint64)),this,SLOT(downloadProgress(qint64,qint64)));
     connect(_reply,SIGNAL(error(QNetworkReply::NetworkError)),this,SLOT(error(QNetworkReply::NetworkError)));
@@ -155,13 +211,13 @@ void Item::finished()
         _file.write(_reply->readAll());
     }
     _file.close();
-    _duration += _durationTimer.elapsed();
+    _info.duration += _durationTimer.elapsed();
 
 
     QVariant possibleRedirectUrl = _reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
     if(possibleRedirectUrl.isValid())
     {
-        _redirectUrl = possibleRedirectUrl.toUrl();
+        _info.redirectUrl = possibleRedirectUrl.toUrl();
         qDebug()<<"redirected";
         start();
         return;
@@ -192,9 +248,9 @@ void Item::onReadyRead()
     qint64 availableBytes = _reply->bytesAvailable();
     qint64 readSize = availableBytes;
 
-    if(_currentInstantSpeed.duration > 0 && _speedLimit > 0)
+    if(_currentInstantSpeed.duration > 0 && _info.speedLimit > 0)
     {
-        readSize = _currentInstantSpeed.duration * _speedLimit / 1000.0 - _currentInstantSpeed.bytes;
+        readSize = _currentInstantSpeed.duration * _info.speedLimit / 1000.0 - _currentInstantSpeed.bytes;
         if(readSize < 0)
             readSize = 0;
         if(readSize > availableBytes)
@@ -212,7 +268,6 @@ void Item::onReadyRead()
     if(readSize > 0 && availableBytes) {
         _file.write(_reply->read(readSize));
     }
-    _file.flush();
     //qDebug()<<"readSize "<<readSize<<" remaining "<<_reply->bytesAvailable()<<" filesize "<<(_file.size()/1024.0);
 
     if(_reply->bytesAvailable())
@@ -227,7 +282,7 @@ void Item::downloadProgress ( qint64 bytesReceived, qint64 bytesTotal )
     _bytesReceived = bytesReceived;
     if(bytesTotal > 0)
     {
-        _progress = (_bytesReceivedAtBegin  + bytesReceived) / qreal(_bytesReceivedAtBegin + bytesTotal);
+        _info.progress = (_info.bytesReceivedAtBegin  + bytesReceived) / qreal(_info.bytesReceivedAtBegin + bytesTotal);
     }
     emit dataChanged();
 }
